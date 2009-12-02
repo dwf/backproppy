@@ -5,6 +5,7 @@ A set of classes for building feed forward networks.
 import numpy as np
 
 class Layer(object):
+    """Base class for network layers."""
     pass
 
 class SoftmaxLayer(Layer):
@@ -37,6 +38,10 @@ class SoftmaxLayer(Layer):
         return out.sum(axis=-1)
 
 class LogisticLayer(Layer):
+    """
+    A layer of elementwise nonlinearities using the logistic sigmoid
+    function, 1/(1 + exp(-x)).
+    """
     def __init__(self, inshape, *args, **kwargs):
         super(LogisticLayer, self).__init__(*args, **kwargs)
         self.inshape = (inshape,) if np.isscalar(inshape) else inshape
@@ -46,9 +51,7 @@ class LogisticLayer(Layer):
         self._grad = np.empty(np.prod(inshape))
     
     def fprop(self, inputs):
-        """
-        Forward propagate input through this module.
-        """
+        """Forward propagate input through this module."""
         return (1 + np.exp(-(inputs + self.biases[np.newaxis, ...])))**(-1)
     
     def bprop(self, dout, inputs):
