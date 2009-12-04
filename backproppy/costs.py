@@ -23,10 +23,20 @@ class CostFunction(object):
         raise NotImplementedError()
 
 class MultiClassCrossEntropy(CostFunction):
+    """
+    Cost function for multinomial regression, or a softmax output 
+    layer in a neural network.
+    """
     def __init__(self, module, *args, **kwargs):
         super(MultiClassCrossEntropy, self).__init__(module, *args, **kwargs)
 
     def evaluate(self, targets, predictions=None, inputs=None):
+        """
+        Evaluate the cost function with respect to a set of targets
+        and the module's predictions. If predictions are unspecified
+        and inputs are given instead, the inputs are fprop()'d
+        through the module.
+        """
         if predictions is None:
             predictions = self.module.fprop(inputs)
         err = np.log(predictions)
@@ -35,6 +45,12 @@ class MultiClassCrossEntropy(CostFunction):
         return err.sum()
 
     def grad(self, targets, predictions=None, inputs=None):
+        """
+        Evaluate the gradient of the cost function with respect to
+        a set of predictions.
+        """
         if predictions is None:
             predictions = self.module.fprop(inputs)
         return predictions - targets
+
+
