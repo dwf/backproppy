@@ -6,7 +6,31 @@ import numpy as np
 
 class Layer(object):
     """Base class for network layers."""
-    pass
+    def __init__(self, nparams=None, params=None, grad=None, *args, **kwargs):
+        if params is None:
+            if nparams is not None:
+                self.params = np.empty(nparams)
+            else:
+                self.params = None
+        else:
+            if not hasattr(params, 'shape') or params.ndim != 1:
+                raise ValueError('params must be rank 1 array if supplied')
+            elif params.size < nparams:
+                raise ValueError('params smaller than required (%d)' % nparams)
+            self.params = params
+
+        if grad is None:
+            if nparams is not None:
+                self._grad = np.empty((nparams,))
+            else:
+                self._grad = None
+        else:
+            if not hasattr(grad, 'shape') or grad.ndim != 1:
+                raise ValueError('grad must be rank 1 array if supplied')
+            elif grad.size < nparams:
+                raise ValueError('grad smaller than required (%d)' % nparams)
+            self._grad = grad
+
 
 class SoftmaxLayer(Layer):
     """
@@ -17,13 +41,12 @@ class SoftmaxLayer(Layer):
         super(SoftmaxLayer, self).__init__(*args, **kwargs)
 
     def fprop(self, inputs):
-        """
-        Forward propagate input through this module.
-        """
+        expd = inputs.copy()
+        expd -= expd.max()
         expd = np.exp(inputs)
         expd /= expd.sum(axis=1)[:, np.newaxis]
         return expd
-
+    
     def bprop(self, dout, inputs):
         """
         Given derivatives with respect to the output of this
@@ -35,7 +58,7 @@ class SoftmaxLayer(Layer):
         values = out[:, 0, idx]
         out = out * -out[:, 0, :, np.newaxis]
         out[:, idx, idx] += values
-        return out.sum(axis=-1)
+        return out.sum(axis=-1) * dout
 
 class LogisticLayer(Layer):
     """
@@ -46,22 +69,29 @@ class LogisticLayer(Layer):
         super(LogisticLayer, self).__init__(*args, **kwargs)
         self.inshape = (inshape,) if np.isscalar(inshape) else inshape
         self.outshape = (inshape,) if np.isscalar(inshape) else inshape
-        self.params = np.empty(np.prod(inshape))
+        super(LogisticLayer, self).__init__(
+            np.prod(inshape),
+            *args,
+            **kwargs
+        )
         self.biases = self.params.reshape(inshape)
-        self._grad = np.empty(np.prod(inshape))
     
     def fprop(self, inputs):
-        """Forward propagate input through this module."""
-        return (1 + np.exp(-(inputs + self.biases[np.newaxis, ...])))**(-1)
+        """Forward propagate."""
+        out = inputs.copy()
+        out += self.biases[np.newaxis, ...]
+        out *= -1.
+        np.exp(out, out)
+        out += 1.
+        out **= -1.
+        return out
     
     def bprop(self, dout, inputs):
-        """
-        Given derivatives with respect to the output of this
-        module as well as a set of inputs, calculate derivatives
-        with respect to the inputs.
-        """
-        fpropped = self.fprop(inputs)
-        return fpropped * (1 - fpropped) * dout
+        """Backpropagate through this module."""
+        out = self.fprop(inputs)
+        out -= out**2
+        out *= dout
+        return out
     
     def grad(self, dout, inputs):
         """
@@ -81,12 +111,16 @@ class LinearLayer(Layer):
     i.e. a matrix multiply. Each output is a weighted sum of inputs.
     """    
     def __init__(self, inshape, outshape, *args, **kwargs):
-        super(LinearLayer, self).__init__(*args, **kwargs)
         self.inshape = (inshape,) if np.isscalar(inshape) else inshape
         self.outshape = (outshape,) if np.isscalar(outshape) else outshape
-        self.params = np.empty(np.prod(self.inshape + self.outshape))
+        ninputs = np.prod(self.inshape)
+        super(LinearLayer, self).__init__(
+            np.prod(self.inshape + self.outshape),
+            *args,
+            **kwargs
+        )
         self.weights = self.params.reshape(self.inshape[::-1] + self.outshape)
-
+    
     def fprop(self, inputs):
         """
         Forward propagate input through this module.

@@ -1,49 +1,56 @@
+import numpy as np
 from layers import LogisticLayer, LinearLayer, SoftmaxLayer
 
 """Modules that represent entire networks."""
 
 class ShallowLogisticSoftmaxNetwork(object):
-    """
-    A network with a single hidden layer of logistic sigmoids.
-    """
     def __init__(self, inshape, hidshape, noutputs):
+        ninput = np.prod(inshape)
+        nhid = np.prod(hidshape)
+        nparams = (ninput + 1) * nhid + (nhid * noutputs)
+        # TODO: 
+        self.params = np.empty(nparams)
+        self._grad = np.empty(nparams)
+        inhidwts = ninput * nhid
+        hidoutwts = nhid * noutputs
         self.layers = [
-            LinearLayer(inshape, hidshape),
-            LogisticLayer(hidshape),
-            LinearLayer(hidshape, noutputs),
+            LinearLayer(
+                inshape,
+                hidshape,
+                params=self.params[0:inhidwts],
+                grad=self._grad[0:inhidwts]
+            ),
+            LogisticLayer(
+                hidshape,
+                params=self.params[inhidwts:(inhidwts + nhid)],
+                grad=self._grad[inhidwts:(inhidwts + nhid)]
+            ),
+            LinearLayer(
+                hidshape,
+                noutputs,
+                params=self.params[(inhidwts + nhid):],
+                grad=self._grad[(inhidwts + nhid):]
+            ),
             SoftmaxLayer()
         ]
-    
+
     def fprop(self, inputs):
-        """
-        Forward propagate input through this module.
-        """
         curr = inputs
         for layer in self.layers:
             curr = layer.fprop(curr)
         return curr
     
     def bprop(self, dout, inputs):
-        """
-        Given derivatives with respect to the output of this
-        module as well as a set of inputs, calculate derivatives
-        with respect to the inputs.
-        """
         fpropped_inputs = []
         fpropped_inputs.append(inputs)
         for layer in self.layers[:-1]:
             fpropped_inputs.append(layer.fprop(fpropped_inputs[-1]))
         bpropped = dout
         for layer, input in zip(self.layers[::-1], fpropped_inputs[::-1]):
-            bpropped = layer.bprop(bpropped, input)        
+            bpropped = layer.bprop(bpropped, input)
         return bpropped
-    
+
     def grad(self, dout, inputs):
-        """
-        Given derivatives with respect to the output of this
-        module as well as a set of inputs, calculate derivatives
-        with respect to this module's internal parameters.
-        """
         fpropped_inputs = []
         fpropped_inputs.append(inputs)
         for layer in self.layers[:-1]:
