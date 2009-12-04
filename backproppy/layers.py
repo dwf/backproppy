@@ -41,10 +41,10 @@ class SoftmaxLayer(Layer):
         super(SoftmaxLayer, self).__init__(*args, **kwargs)
 
     def fprop(self, inputs):
-        expd = inputs.copy()
+        expd = np.atleast_2d(inputs.copy())
         expd -= expd.max()
-        expd = np.exp(inputs)
-        expd /= expd.sum(axis=1)[:, np.newaxis]
+        expd = np.exp(expd)
+        expd /= np.atleast_1d(expd.sum(axis=-1))[:, np.newaxis]
         return expd
     
     def bprop(self, dout, inputs):
@@ -53,12 +53,14 @@ class SoftmaxLayer(Layer):
         module as well as a set of inputs, calculate derivatives
         with respect to the inputs.
         """
+        dout = np.atleast_2d(dout)
         out = self.fprop(inputs)[:, np.newaxis, :]
         idx = np.arange(out.shape[2])
         values = out[:, 0, idx]
         out = out * -out[:, 0, :, np.newaxis]
         out[:, idx, idx] += values
-        return out.sum(axis=-1) * dout
+        out *= dout[:, np.newaxis, :]
+        return out.sum(axis=-1)
 
 class LogisticLayer(Layer):
     """
