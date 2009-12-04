@@ -1,2 +1,4 @@
 *.pyc
 *.mat
+*.py~
+*.py.swp
