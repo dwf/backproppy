@@ -91,8 +91,10 @@ class LogisticLayer(Layer):
     def bprop(self, dout, inputs):
         """Backpropagate through this module."""
         out = self.fprop(inputs)
-        out -= out**2
-        out *= dout
+        # Compute 1 - y_I = exp(-inputs) / (1 + exp(-inputs)) =>  more stable
+        expd = np.exp(-inputs)
+        oneminus = expd
+        oneminus /= (1 + expd)
         return out
     
     def grad(self, dout, inputs):
