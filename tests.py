@@ -1,6 +1,9 @@
 import numpy as np
 
-from backproppy.layers import SoftmaxLayer
+from backproppy.layers import SoftmaxLayer, LinearLayer, LogisticLayer
+from backproppy.networks import ShallowLogisticSoftmaxNetwork
+from backproppy.costs import MultiClassCrossEntropy
+from backproppy.trainers import BatchNetworkTrainer
 
 def fd_grad(func, x_in, tol=1.0e-5):
     """
@@ -17,7 +20,8 @@ def fd_grad(func, x_in, tol=1.0e-5):
         bbb = x_in.copy()
         aaa[ii] = aaa[ii] - tol / 2.0
         bbb[ii] = bbb[ii] + tol / 2.0
-        grad[ii] = (func(bbb) - func(aaa))/(bbb[ii] - aaa[ii])
+        grad[ii] = (func(bbb.reshape(inshape)) - func(aaa.reshape(inshape))) \
+            / (bbb[ii] - aaa[ii])
     return grad
 
 class FPropWithInputs(object):
@@ -51,3 +55,19 @@ class FPropWithParams(object):
         self.module.params[:] = changed.reshape(np.prod(changed.shape))
         return self.module.grad(self.dout, self.inputs)
 
+if __name__ == "__main__":
+    import sys
+    from scipy.io.matlab import loadmat
+    import matplotlib.pyplot as plt
+    data = loadmat(sys.argv[1])
+    digits = [data['train%d' % i][:int(sys.argv[2])] for i in range(10)]
+    digits = (np.concatenate(digits) / 255.).reshape(10 * int(sys.argv[2]),
+                                                     28, 28)
+    labels = np.zeros((10 * int(sys.argv[2]), 10))
+    for i in range(10):
+        labels[(int(sys.argv[2]) * i):(int(sys.argv[2]) * (i + 1)), i] = 1.
+    net = ShallowLogisticSoftmaxNetwork((28, 28), int(sys.argv[3]), 10)
+    net.params[:] = np.random.randn(len(net.params)) * 0.001
+    cost = MultiClassCrossEntropy(net)
+    trainer = BatchNetworkTrainer(net, digits, labels, cost)
+    trainer.train(eta=float(sys.argv[4]))
