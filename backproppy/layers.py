@@ -80,7 +80,7 @@ class LogisticLayer(Layer):
     
     def fprop(self, inputs):
         """Forward propagate."""
-        out = inputs.copy()
+        out = np.atleast_2d(inputs.copy())
         out += self.biases[np.newaxis, ...]
         out *= -1.
         np.exp(out, out)
@@ -90,11 +90,15 @@ class LogisticLayer(Layer):
     
     def bprop(self, dout, inputs):
         """Backpropagate through this module."""
-        out = self.fprop(inputs)
+        out = self.fprop(np.atleast_2d(inputs))
         # Compute 1 - y_I = exp(-inputs) / (1 + exp(-inputs)) =>  more stable
-        expd = np.exp(-inputs)
-        oneminus = expd
-        oneminus /= (1 + expd)
+        expd = np.atleast_2d(inputs.copy())
+        expd += self.biases[np.newaxis, ...]
+        expd *= -1.
+        np.exp(expd, expd)
+        oneminus = expd / (1 + expd)
+        out *= oneminus
+        out *= dout
         return out
     
     def grad(self, dout, inputs):
@@ -104,7 +108,7 @@ class LogisticLayer(Layer):
         with respect to this module's internal parameters.
         """
         self._grad[...] = \
-            self.bprop(dout, inputs).sum(axis=0).reshape(
+            self.bprop(dout, np.atleast_2d(inputs)).sum(axis=0).reshape(
                 np.prod(self.inshape)
             )
         return self._grad
@@ -149,5 +153,10 @@ class LinearLayer(Layer):
         module as well as a set of inputs, calculate derivatives
         with respect to this module's internal parameters.
         """
-        return np.tensordot(inputs.transpose(), dout, 1)
+        self._grad[...] = np.tensordot(
+            inputs.transpose(),
+            dout,
+            1
+        ).reshape(np.prod(self.weights.shape))
+        return self._grad
 
