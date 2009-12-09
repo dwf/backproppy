@@ -51,6 +51,6 @@ class MultiClassCrossEntropy(CostFunction):
         """
         if predictions is None:
             predictions = self.module.fprop(inputs)
-        return predictions - targets
+        return -targets / predictions
 
 
