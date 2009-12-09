@@ -63,5 +63,5 @@ class ShallowLogisticSoftmaxNetwork(object):
             else:
                 grads.append(None)
             bpropped = layer.bprop(bpropped, input)
-        return grads
+        return self._grad
 
